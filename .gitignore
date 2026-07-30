@@ -1,0 +1,20 @@
+.env
+.env.*
+!.env.example
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Backend
+backend/target/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+
+# Local data and logs
+data/
+*.log
