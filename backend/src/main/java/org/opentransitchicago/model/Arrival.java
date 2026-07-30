@@ -1,6 +1,7 @@
 package org.opentransitchicago.model;
 
 public record Arrival(
+        String stationId,
         String runNumber,
         String route,
         String destination,

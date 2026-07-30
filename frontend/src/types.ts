@@ -9,6 +9,7 @@ export type Station = {
 }
 
 export type Arrival = {
+  stationId: string
   runNumber: string
   route: string
   destination: string
@@ -38,4 +39,22 @@ export type TrainPosition = {
 export type MapCenter = {
   latitude: number
   longitude: number
+}
+
+export type NearbyStationBoard = {
+  station: Station
+  distanceMiles: number
+  walkMinutes: number
+  arrivals: Arrival[]
+}
+
+export type NearbyBoard = {
+  generatedAt: string
+  reference: MapCenter
+  stations: NearbyStationBoard[]
+}
+
+export type RouteGeometry = {
+  route: string
+  paths: MapCenter[][]
 }

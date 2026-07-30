@@ -7,6 +7,7 @@ declare module 'leaflet' {
   export const layerGroup: any
   export const circleMarker: any
   export const marker: any
+  export const polyline: any
   export const divIcon: any
   export const latLngBounds: any
 }
