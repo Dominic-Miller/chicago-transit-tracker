@@ -58,3 +58,58 @@ export type RouteGeometry = {
   route: string
   paths: MapCenter[][]
 }
+
+export type BusRoute = {
+  id: string
+  name: string
+}
+
+export type BusStop = {
+  id: string
+  name: string
+  direction: string
+  latitude: number
+  longitude: number
+  routes: string[]
+}
+
+export type BusArrival = {
+  stopId: string
+  vehicleId: string
+  route: string
+  destination: string
+  direction: string
+  predictionTime: string
+  minutes: number
+  approaching: boolean
+  scheduled: boolean
+  delayed: boolean
+}
+
+export type BusArrivalBoard = {
+  generatedAt: string
+  arrivals: BusArrival[]
+}
+
+export type NearbyBusStopBoard = {
+  stop: BusStop
+  distanceMiles: number
+  walkMinutes: number
+  arrivals: BusArrival[]
+}
+
+export type NearbyBusBoard = {
+  generatedAt: string
+  reference: MapCenter
+  stops: NearbyBusStopBoard[]
+}
+
+export type BusPosition = {
+  vehicleId: string
+  route: string
+  destination: string
+  latitude: number
+  longitude: number
+  heading: number
+  delayed: boolean
+}

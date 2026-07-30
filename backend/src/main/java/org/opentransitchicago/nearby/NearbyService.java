@@ -52,15 +52,15 @@ public class NearbyService {
         return new NearbyBoard(batch.generatedAt(), new MapPoint(latitude, longitude), boards);
     }
 
-    static void validateCoordinates(double latitude, double longitude) {
+    public static void validateCoordinates(double latitude, double longitude) {
         if (!Double.isFinite(latitude) || latitude < -90 || latitude > 90
                 || !Double.isFinite(longitude) || longitude < -180 || longitude > 180) {
             throw new IllegalArgumentException("Latitude and longitude must be finite and in range");
         }
     }
 
-    static double distanceMiles(double latitudeA, double longitudeA,
-                                double latitudeB, double longitudeB) {
+    public static double distanceMiles(double latitudeA, double longitudeA,
+                                       double latitudeB, double longitudeB) {
         double latitudeDelta = Math.toRadians(latitudeB - latitudeA);
         double longitudeDelta = Math.toRadians(longitudeB - longitudeA);
         double a = Math.sin(latitudeDelta / 2) * Math.sin(latitudeDelta / 2)
@@ -69,7 +69,7 @@ public class NearbyService {
         return EARTH_RADIUS_MILES * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    static long approximateWalkMinutes(double distanceMiles) {
+    public static long approximateWalkMinutes(double distanceMiles) {
         return Math.max(1, (long) Math.ceil(distanceMiles * 1.2 / 3 * 60));
     }
 

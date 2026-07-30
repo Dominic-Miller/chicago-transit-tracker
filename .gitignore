@@ -18,3 +18,6 @@ backend/target/
 # Local data and logs
 data/
 *.log
+
+# Local HTTPS certificates
+.certs/

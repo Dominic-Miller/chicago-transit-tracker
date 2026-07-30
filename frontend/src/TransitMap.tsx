@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as L from 'leaflet'
-import type { MapCenter, RouteGeometry, Station, TrainPosition } from './types'
+import type { BusPosition, BusStop, MapCenter, RouteGeometry, Station, TrainPosition } from './types'
 
 type Props = {
   stations: Station[]
@@ -8,9 +8,15 @@ type Props = {
   onCenterChange: (center: MapCenter, userInitiated: boolean) => void
   onStationSelect: (station: Station) => void
   trains: TrainPosition[]
+  buses: BusPosition[]
+  busStops: BusStop[]
+  selectedBusStop: BusStop | null
   selectedRoute: string | null
+  selectedMode: 'rail' | 'bus' | null
   geometry: RouteGeometry | null
   userLocation: MapCenter | null
+  nearbyReference: MapCenter | null
+  nearbyReferenceVisible: boolean
   focusPoint: { point: MapCenter; token: number } | null
 }
 
@@ -22,6 +28,7 @@ const routeColors: Record<string, string> = {
 
 // Lucide's TrainFront icon, inlined because Leaflet's divIcon API expects HTML.
 const trainFrontIcon = '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.1V7a4 4 0 0 0 8 0V3.1"></path><path d="m9 15-1-1"></path><path d="m15 15 1-1"></path><path d="M9 19c-2.8 0-5-2.2-5-5v-4a8 8 0 0 1 16 0v4c0 2.8-2.2 5-5 5Z"></path><path d="m8 19-2 3"></path><path d="m16 19 2 3"></path></svg>'
+const busFrontIcon = '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6 2 7"></path><path d="M10 6h4"></path><path d="m22 7-2-1"></path><rect width="16" height="16" x="4" y="3" rx="2"></rect><path d="M4 11h16"></path><path d="M8 15h.01"></path><path d="M16 15h.01"></path><path d="M6 19v2"></path><path d="M18 21v-2"></path></svg>'
 
 export default function TransitMap({
   stations,
@@ -29,9 +36,15 @@ export default function TransitMap({
   onCenterChange,
   onStationSelect,
   trains,
+  buses,
+  busStops,
+  selectedBusStop,
   selectedRoute,
+  selectedMode,
   geometry,
   userLocation,
+  nearbyReference,
+  nearbyReferenceVisible,
   focusPoint,
 }: Props) {
   const [mapZoom, setMapZoom] = useState(12)
@@ -39,9 +52,12 @@ export default function TransitMap({
   const mapRef = useRef<L.Map | null>(null)
   const stationLayerRef = useRef<L.LayerGroup | null>(null)
   const trainLayerRef = useRef<L.LayerGroup | null>(null)
+  const busLayerRef = useRef<L.LayerGroup | null>(null)
+  const busStopLayerRef = useRef<L.LayerGroup | null>(null)
   const geometryLayerRef = useRef<L.LayerGroup | null>(null)
   const locationLayerRef = useRef<L.LayerGroup | null>(null)
-  const fittedRouteRef = useRef<string | null>(null)
+  const referenceLayerRef = useRef<L.LayerGroup | null>(null)
+  const referenceMarkerRef = useRef<ReturnType<typeof L.circleMarker> | null>(null)
   const userInteractionRef = useRef(false)
   const onCenterChangeRef = useRef(onCenterChange)
   const onStationSelectRef = useRef(onStationSelect)
@@ -76,12 +92,18 @@ export default function TransitMap({
     const stationLayer = L.layerGroup().addTo(map)
     const geometryLayer = L.layerGroup().addTo(map)
     const trainLayer = L.layerGroup().addTo(map)
+    const busStopLayer = L.layerGroup().addTo(map)
+    const busLayer = L.layerGroup().addTo(map)
     const locationLayer = L.layerGroup().addTo(map)
+    const referenceLayer = L.layerGroup().addTo(map)
     mapRef.current = map
     stationLayerRef.current = stationLayer
     geometryLayerRef.current = geometryLayer
     trainLayerRef.current = trainLayer
+    busLayerRef.current = busLayer
+    busStopLayerRef.current = busStopLayer
     locationLayerRef.current = locationLayer
+    referenceLayerRef.current = referenceLayer
 
     const syncMapDetail = () => {
       if (containerRef.current) containerRef.current.dataset.mapDetail = String(map.getZoom() >= 14)
@@ -92,10 +114,18 @@ export default function TransitMap({
       onCenterChangeRef.current({ latitude: center.lat, longitude: center.lng }, userInteractionRef.current)
       userInteractionRef.current = false
     }
+    const trackReferencePoint = () => referenceMarkerRef.current?.setLatLng(map.getCenter())
+    const setReferenceDragging = (dragging: boolean) => {
+      const element = referenceMarkerRef.current?.getElement()
+      element?.classList.toggle('is-dragging', dragging)
+      if (dragging) element?.classList.remove('is-hidden')
+    }
     syncMapDetail()
     map.on('zoomend', syncMapDetail)
+    map.on('move', trackReferencePoint)
     map.on('moveend', reportCenter)
-    map.on('dragstart', () => { userInteractionRef.current = true })
+    map.on('dragstart', () => { userInteractionRef.current = true; setReferenceDragging(true) })
+    map.on('dragend', () => setReferenceDragging(false))
     map.on('zoomstart', (event: { originalEvent?: Event }) => {
       if (event.originalEvent) userInteractionRef.current = true
     })
@@ -108,35 +138,26 @@ export default function TransitMap({
       stationLayerRef.current = null
       geometryLayerRef.current = null
       trainLayerRef.current = null
+      busLayerRef.current = null
+      busStopLayerRef.current = null
       locationLayerRef.current = null
+      referenceLayerRef.current = null
+      referenceMarkerRef.current = null
     }
   }, [])
 
   useEffect(() => {
     const layer = geometryLayerRef.current
-    const map = mapRef.current
-    if (!layer || !map) return
+    if (!layer) return
     layer.clearLayers()
     if (!geometry || !selectedRoute) return
-    const color = routeColors[selectedRoute] ?? '#1769aa'
-    const bounds: [number, number][] = []
+    const color = selectedMode === 'bus' ? '#1473e6' : routeColors[selectedRoute] ?? '#1769aa'
     geometry.paths.forEach((path) => {
       const latLngs = path.map((point) => [point.latitude, point.longitude] as [number, number])
-      bounds.push(...latLngs)
       L.polyline(latLngs, { color: '#ffffff', weight: 9, opacity: 0.94, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layer)
       L.polyline(latLngs, { color, weight: 5, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layer)
     })
-    if (bounds.length && fittedRouteRef.current !== selectedRoute) {
-      fittedRouteRef.current = selectedRoute
-      const desktop = window.matchMedia('(min-width: 900px)').matches
-      map.fitBounds(L.latLngBounds(bounds), {
-        paddingTopLeft: desktop ? [460, 76] : [34, 130],
-        paddingBottomRight: desktop ? [40, 76] : [34, 260],
-        maxZoom: 13,
-        animate: !reducedMotion(),
-      })
-    }
-  }, [geometry, selectedRoute])
+  }, [geometry, selectedRoute, selectedMode])
 
   useEffect(() => {
     const stationLayer = stationLayerRef.current
@@ -146,7 +167,7 @@ export default function TransitMap({
     if (!map) return
 
     stationLayer.clearLayers()
-    const visibleStations = selectedRoute
+    const visibleStations = selectedMode === 'bus' ? [] : selectedRoute && selectedMode === 'rail'
       ? stations.filter((station) => station.id === selectedStation?.id || station.routes.some((route) => normalizeRoute(route) === selectedRoute))
       : stations
     clusterStations(visibleStations, map, selectedStation?.id, Boolean(selectedRoute)).forEach((group) => {
@@ -205,12 +226,29 @@ export default function TransitMap({
       element?.addEventListener('focus', () => marker.openTooltip())
       element?.addEventListener('blur', () => marker.closeTooltip())
     })
-  }, [stations, selectedStation?.id, selectedRoute, mapZoom])
+  }, [stations, selectedStation?.id, selectedRoute, selectedMode, mapZoom])
 
   useEffect(() => {
-    const map = mapRef.current
+    const layer = busStopLayerRef.current
+    if (!layer) return
+    layer.clearLayers()
+    const visibleBusStops = selectedMode === 'bus' ? busStops : selectedBusStop ? [selectedBusStop] : []
+    visibleBusStops.forEach((stop) => {
+      const selected = stop.id === selectedBusStop?.id
+      const marker = L.circleMarker([stop.latitude, stop.longitude], {
+        radius: selected ? 8 : 4,
+        color: '#ffffff', weight: selected ? 3 : 2,
+        fillColor: '#1473e6', fillOpacity: selected ? 1 : .86,
+        className: `bus-stop-marker${selected ? ' is-selected' : ''}`,
+      })
+      marker.bindTooltip(`${stop.name} · ${stop.direction}`, { direction: 'top' })
+      marker.addTo(layer)
+    })
+  }, [busStops, selectedBusStop?.id, selectedMode])
+
+  useEffect(() => {
     const trainLayer = trainLayerRef.current
-    if (!map || !trainLayer) return
+    if (!trainLayer) return
 
     trainLayer.clearLayers()
     trains.forEach((train) => {
@@ -234,32 +272,46 @@ export default function TransitMap({
       marker.getElement()?.setAttribute('aria-label', `Train ${train.runNumber} toward ${train.destination}; next stop ${train.nextStationName}${train.delayed ? '; delayed' : ''}`)
     })
 
-    if (selectedRoute && trains.length > 0 && !geometry && fittedRouteRef.current !== selectedRoute) {
-      fittedRouteRef.current = selectedRoute
-      const desktop = window.matchMedia('(min-width: 900px)').matches
-      if (desktop) {
-        map.once('moveend', () => {
-          if (map.getZoom() < 11) map.setZoom(11, { animate: false })
-        })
-      }
-      map.fitBounds(L.latLngBounds(trains.map((train) => [train.latitude, train.longitude])), {
-        paddingTopLeft: desktop ? [460, 76] : [40, 150],
-        paddingBottomRight: desktop ? [40, 76] : [40, 240],
-        maxZoom: 13,
-        animate: !reducedMotion(),
+  }, [trains, selectedRoute])
+
+  useEffect(() => {
+    const layer = busLayerRef.current
+    if (!layer) return
+    layer.clearLayers()
+    if (selectedMode !== 'bus') return
+    buses.forEach((bus) => {
+      const markerRotation = clampHeading(bus.heading) + 135
+      const marker = L.marker([bus.latitude, bus.longitude], {
+        keyboard: true, zIndexOffset: 1050,
+        title: `Bus ${bus.vehicleId}, route ${bus.route} toward ${bus.destination}`,
+        alt: `Bus ${bus.vehicleId} toward ${bus.destination}`,
+        icon: L.divIcon({
+          className: 'bus-marker-shell',
+          html: `<span class="bus-marker${bus.delayed ? ' is-delayed' : ''}" style="--marker-rotation:${markerRotation}deg;--icon-rotation:${-markerRotation}deg"><span class="bus-marker-icon">${busFrontIcon}</span></span>`,
+          iconSize: [44, 44], iconAnchor: [22, 22],
+        }),
       })
-    }
-    if (!selectedRoute) fittedRouteRef.current = null
-  }, [trains, selectedRoute, geometry])
+      marker.bindTooltip(busTooltip(bus), { direction: 'top', offset: [0, -16] })
+      marker.bindPopup(busPopup(bus), { offset: [0, -16], className: 'train-popup' })
+      marker.addTo(layer)
+      marker.getElement()?.setAttribute('aria-label', `Bus ${bus.vehicleId}, route ${bus.route} toward ${bus.destination}${bus.delayed ? '; delayed' : ''}`)
+    })
+  }, [buses, selectedMode])
 
   useEffect(() => {
     if (!selectedStation || !mapRef.current) return
     mapRef.current.flyTo(
       [selectedStation.latitude, selectedStation.longitude],
-      Math.max(mapRef.current.getZoom(), 14),
+      selectedMode === 'rail' ? mapRef.current.getZoom() : Math.max(mapRef.current.getZoom(), 14),
       { animate: !reducedMotion(), duration: 0.5 },
     )
-  }, [selectedStation?.id])
+  }, [selectedStation?.id, selectedMode])
+
+  useEffect(() => {
+    if (!selectedBusStop || selectedMode === 'bus' || !mapRef.current) return
+    mapRef.current.flyTo([selectedBusStop.latitude, selectedBusStop.longitude],
+      Math.max(mapRef.current.getZoom(), 15), { animate: !reducedMotion(), duration: .5 })
+  }, [selectedBusStop?.id, selectedMode])
 
   useEffect(() => {
     locationLayerRef.current?.clearLayers()
@@ -275,13 +327,28 @@ export default function TransitMap({
   }, [userLocation])
 
   useEffect(() => {
+    referenceLayerRef.current?.clearLayers()
+    referenceMarkerRef.current = null
+    if (!nearbyReference || !referenceLayerRef.current || !mapRef.current) return
+    const marker = L.circleMarker(mapRef.current.getCenter(), {
+        radius: 7,
+        color: '#ffffff',
+        weight: 3,
+        fillColor: '#f06423',
+        fillOpacity: 1,
+        className: `nearby-reference-marker${nearbyReferenceVisible ? '' : ' is-hidden'}`,
+      }).bindTooltip('Nearby routes reference point', { direction: 'top' }).addTo(referenceLayerRef.current)
+    referenceMarkerRef.current = marker
+  }, [nearbyReference, nearbyReferenceVisible])
+
+  useEffect(() => {
     if (!focusPoint || !mapRef.current) return
     mapRef.current.flyTo([focusPoint.point.latitude, focusPoint.point.longitude], 14, {
       animate: !reducedMotion(), duration: 0.6,
     })
   }, [focusPoint?.token])
 
-  return <div ref={containerRef} className="map" aria-label="Interactive map of Chicago rail stations" />
+  return <div ref={containerRef} className="map" aria-label="Interactive map of Chicago trains, buses, stations, and stops" />
 }
 
 function stationMarkerHtml(station: Station, selected: boolean) {
@@ -372,6 +439,30 @@ function trainPopup(train: TrainPosition) {
   const next = document.createElement('span')
   next.textContent = `Next stop · ${train.nextStationName}`
   content.append(label, title, next)
+  return content
+}
+
+function busTooltip(bus: BusPosition) {
+  const label = document.createElement('span')
+  const title = document.createElement('strong')
+  title.textContent = `Route ${bus.route} to ${bus.destination}`
+  const detail = document.createElement('span')
+  detail.textContent = `Bus ${bus.vehicleId}${bus.delayed ? ' · Delayed' : ''}`
+  label.append(title, document.createElement('br'), detail)
+  return label
+}
+
+function busPopup(bus: BusPosition) {
+  const content = document.createElement('div')
+  content.className = 'train-popup-content'
+  const label = document.createElement('span')
+  label.className = 'popup-kicker'
+  label.textContent = `Route ${bus.route}${bus.delayed ? ' · Delayed' : ''}`
+  const title = document.createElement('strong')
+  title.textContent = `Toward ${bus.destination}`
+  const detail = document.createElement('span')
+  detail.textContent = `Bus ${bus.vehicleId}`
+  content.append(label, title, detail)
   return content
 }
 

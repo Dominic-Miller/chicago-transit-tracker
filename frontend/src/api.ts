@@ -1,4 +1,4 @@
-import type { ArrivalBoard, MapCenter, NearbyBoard, RouteGeometry, Station, TrainPosition } from './types'
+import type { ArrivalBoard, BusArrivalBoard, BusPosition, BusRoute, BusStop, MapCenter, NearbyBoard, NearbyBusBoard, RouteGeometry, Station, TrainPosition } from './types'
 
 async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(path, { signal })
@@ -27,3 +27,25 @@ export const getNearbyBoard = (reference: MapCenter, signal?: AbortSignal) => {
 
 export const getRouteGeometry = (route: string, signal?: AbortSignal) =>
   request<RouteGeometry>(`/api/routes/${encodeURIComponent(route)}/geometry`, signal)
+
+export const getNearbyBusBoard = (reference: MapCenter, signal?: AbortSignal) => {
+  const parameters = new URLSearchParams({ lat: String(reference.latitude), lon: String(reference.longitude) })
+  return request<NearbyBusBoard>(`/api/buses/nearby?${parameters}`, signal)
+}
+
+export const getBusRoutes = () => request<BusRoute[]>('/api/buses/routes')
+
+export const getBusArrivals = (stopId: string) =>
+  request<BusArrivalBoard>(`/api/buses/stops/${encodeURIComponent(stopId)}/arrivals`)
+
+export const getBusPositions = (route: string) =>
+  request<BusPosition[]>(`/api/buses/routes/${encodeURIComponent(route)}/vehicles`)
+
+export const getBusRouteGeometry = (route: string, signal?: AbortSignal) =>
+  request<RouteGeometry>(`/api/buses/routes/${encodeURIComponent(route)}/geometry`, signal)
+
+export const getBusRouteStops = (route: string, signal?: AbortSignal) =>
+  request<BusStop[]>(`/api/buses/routes/${encodeURIComponent(route)}/stops`, signal)
+
+export const searchBusStops = (query: string, signal?: AbortSignal) =>
+  request<BusStop[]>(`/api/buses/stops/search?q=${encodeURIComponent(query)}`, signal)
