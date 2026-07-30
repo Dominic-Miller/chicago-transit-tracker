@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: open-transit-chicago-api
+    runtime: docker
+    region: ohio
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: CTA_API_KEY
+        sync: false
+      - key: CTA_BUS_API_KEY
+        sync: false
+      - key: APP_ALLOWED_ORIGINS
+        sync: false
+
+  - type: web
+    name: open-transit-chicago
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    autoDeploy: true
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: geolocation=(self)
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache

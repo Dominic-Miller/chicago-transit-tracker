@@ -1,7 +1,12 @@
 import type { ArrivalBoard, BusArrivalBoard, BusPosition, BusRoute, BusStop, MapCenter, NearbyBoard, NearbyBusBoard, RouteGeometry, Station, TrainPosition } from './types'
 
+const configuredApiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim().replace(/\/+$/, '') ?? ''
+const apiBaseUrl = configuredApiBase && !/^https?:\/\//i.test(configuredApiBase)
+  ? `https://${configuredApiBase}`
+  : configuredApiBase
+
 async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(path, { signal })
+  const response = await fetch(`${apiBaseUrl}${path}`, { signal })
   if (!response.ok) {
     const payload = await response.json().catch(() => null) as { message?: string } | null
     throw new Error(payload?.message || `Request failed with status ${response.status}`)

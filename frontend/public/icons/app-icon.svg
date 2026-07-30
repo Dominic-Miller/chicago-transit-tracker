@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Open Transit Chicago app icon</title>
+  <defs>
+    <linearGradient id="sky" x1="72" y1="48" x2="438" y2="466" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#27a9ff"/>
+      <stop offset="0.52" stop-color="#1678e8"/>
+      <stop offset="1" stop-color="#1354b8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#0b315f" flood-opacity=".28"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#sky)"/>
+  <path d="M-8 371C82 286 138 343 210 269c69-71 111-45 168-112 43-51 86-62 142-67" fill="none" stroke="#f8ca36" stroke-width="40" stroke-linecap="round" opacity=".98"/>
+  <path d="M-9 418c94-82 155-39 223-102 72-66 123-30 178-82 45-42 85-49 129-46" fill="none" stroke="#f26a3d" stroke-width="36" stroke-linecap="round" opacity=".98"/>
+  <g filter="url(#shadow)">
+    <path d="M344 223c0 80-88 171-88 171s-88-91-88-171a88 88 0 1 1 176 0Z" fill="#fffdf9"/>
+    <circle cx="256" cy="223" r="42" fill="#10263a"/>
+    <path d="M234 201h44v37c0 12-9 21-21 21h-2c-12 0-21-9-21-21v-37Z" fill="#fffdf9"/>
+    <path d="M244 213h24M244 227h24M243 259l-9 14m35-14 9 14" fill="none" stroke="#10263a" stroke-width="8" stroke-linecap="round"/>
+  </g>
+</svg>

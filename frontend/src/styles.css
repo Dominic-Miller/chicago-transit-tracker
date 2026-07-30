@@ -85,13 +85,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, .leaflet-marker-icon
 .yellow { --route-color: #f5c51b; }
 .bus { --route-color: #1473e6; }
 
-.route-status, .location-notice { position: absolute; z-index: 1050; display: flex; align-items: center; gap: 8px; min-height: 42px; border: 1px solid rgba(255,255,255,.9); border-radius: 13px; background: rgba(255,253,249,.96); box-shadow: 0 6px 22px rgba(15,38,58,.16); backdrop-filter: blur(14px); color: var(--ink); font-size: 12px; font-weight: 750; }
+.route-status, .location-notice, .offline-status { position: absolute; z-index: 1050; display: flex; align-items: center; gap: 8px; min-height: 42px; border: 1px solid rgba(255,255,255,.9); border-radius: 13px; background: rgba(255,253,249,.96); box-shadow: 0 6px 22px rgba(15,38,58,.16); backdrop-filter: blur(14px); color: var(--ink); font-size: 12px; font-weight: 750; }
 .route-status { top: calc(max(10px, env(safe-area-inset-top)) + 163px); left: 14px; padding: 8px 12px; }
 .route-status.is-error { color: #8f2d23; background: #fff5f2; }
 .route-status button { min-height: 32px; border: 0; border-radius: 9px; padding: 0 9px; color: white; background: #8f2d23; cursor: pointer; font-weight: 800; }
 .location-notice { top: calc(max(10px, env(safe-area-inset-top)) + 163px); right: 14px; max-width: calc(100% - 28px); padding: 4px 4px 4px 12px; }
 .location-notice.denied, .location-notice.unavailable, .location-notice.error { color: #812e24; background: #fff7f4; }
 .location-notice .icon-button { width: 36px; height: 36px; flex-basis: 36px; }
+.offline-status { top: calc(max(10px, env(safe-area-inset-top)) + 163px); right: 14px; padding: 8px 12px; color: #733225; background: rgba(255,245,241,.97); }
 
 .bottom-sheet { position: absolute; z-index: 1200; left: 0; right: 0; bottom: 0; height: 43dvh; min-height: 280px; display: flex; flex-direction: column; border: 1px solid rgba(255,255,255,.95); border-bottom: 0; border-radius: 27px 27px 0 0; background: rgba(255,253,249,.98); box-shadow: 0 -12px 45px rgba(15,38,58,.2); backdrop-filter: blur(20px); transition: height .32s cubic-bezier(.22,.82,.3,1); }
 .sheet-collapsed .bottom-sheet { height: calc(99px + env(safe-area-inset-bottom)); min-height: 99px; }
@@ -127,6 +128,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, .leaflet-marker-icon
 .inline-notice button { color: #7c2f24; background: #f8ddd5; }
 .stale-notice { min-height: 38px; display: flex; align-items: center; gap: 7px; margin: 2px 2px 8px; padding: 0 10px; border-radius: 12px; color: #70531a; background: #fff3ce; font-size: 11px; font-weight: 700; }
 .stale-notice button { min-height: 44px; margin-left: auto; border: 0; border-radius: 9px; padding: 0 9px; color: #60440f; background: #ffe59b; cursor: pointer; font-weight: 850; }
+.wake-notice { display: flex; align-items: center; gap: 9px; margin: 2px 2px 10px; padding: 11px 12px; border: 1px solid #cbe2f3; border-radius: 14px; color: #28536e; background: #edf8ff; font-size: 11px; line-height: 1.35; }
+.wake-notice svg { flex: 0 0 auto; }
+.wake-notice span { display: grid; gap: 2px; }
+.wake-notice strong { color: var(--ink); }
 
 .line-feed { display: grid; gap: 9px; }
 .nearby-line-card { overflow: hidden; border: 1px solid #dfe5e6; border-left: 5px solid var(--route-color); border-radius: 18px; background: white; box-shadow: 0 4px 13px rgba(15,38,58,.055); }
@@ -326,6 +331,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, .leaflet-marker-icon
 .nearby-reference-marker.is-dragging { stroke-width: 4; filter: drop-shadow(0 3px 8px rgba(110,45,12,.65)); }
 
 .data-credit { position: absolute; z-index: 900; right: 7px; bottom: calc(43dvh + 4px); margin: 0; padding: 3px 6px; border-radius: 6px; color: #536875; background: rgba(255,253,249,.84); font-size: 8px; transition: bottom .32s cubic-bezier(.22,.82,.3,1); }
+.data-credit a { color: inherit; font-weight: 750; }
 .sheet-collapsed .data-credit { bottom: calc(99px + env(safe-area-inset-bottom) + 4px); }
 .sheet-expanded .data-credit { display: none; }
 .sheet-partial .leaflet-bottom { bottom: 43dvh; transition: bottom .32s cubic-bezier(.22,.82,.3,1); }

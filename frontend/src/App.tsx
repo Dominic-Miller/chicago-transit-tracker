@@ -67,6 +67,7 @@ export default function App() {
   const [focusPoint, setFocusPoint] = useState<{ point: MapCenter; token: number } | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const location = useLocation()
+  const isOnline = useOnlineStatus()
   const reference = referenceMode === 'location' && location.coordinates ? location.coordinates : center
   const nearby = useNearbyBoard(reference)
   const nearbyBuses = useNearbyBusBoard(reference)
@@ -283,8 +284,8 @@ export default function App() {
         selectedStation={selected ?? routeFocus?.station ?? null}
         onCenterChange={onMapCenterChange}
         onStationSelect={selectStation}
-        trains={visibleTrains}
-        buses={visibleBuses}
+        trains={isOnline ? visibleTrains : []}
+        buses={isOnline ? visibleBuses : []}
         busStops={busRouteStops}
         selectedBusStop={selectedBusStop ?? routeFocus?.busStop ?? null}
         selectedRoute={selectedRoute}
@@ -316,12 +317,14 @@ export default function App() {
         </div>
       </header>
 
-      {selectedRoute && <div className={`route-status ${routeError ? 'is-error' : ''}`} role="status">
+      {selectedRoute && isOnline && <div className={`route-status ${routeError ? 'is-error' : ''}`} role="status">
         {routeError ? <AlertCircle size={16} /> : loadingPositions ? <RefreshCw className="spin" size={16} /> : selectedMode === 'bus' ? <BusFront size={16} /> : <Navigation size={16} />}
         <span>{routeError ? `Live ${selectedMode === 'bus' ? 'buses' : 'trains'} unavailable`
           : loadingPositions && (selectedMode === 'bus' ? visibleBuses.length : visibleTrains.length) === 0 ? `Finding ${selectedRoute} ${selectedMode === 'bus' ? 'buses' : 'trains'}…`
             : `${selectedMode === 'bus' ? `${visibleBuses.length} Route ${selectedRoute} bus${visibleBuses.length === 1 ? '' : 'es'}` : `${visibleTrains.length} ${selectedRoute} train${visibleTrains.length === 1 ? '' : 's'}`} live`}</span>
       </div>}
+
+      {!isOnline && <div className="offline-status" role="status"><WifiOff size={17} /><span>Offline · Live departures paused</span></div>}
 
       <BottomSheet state={sheetState} setState={setSheetState} onCycle={cycleSheet}>
         <div className="sheet-heading">
@@ -338,28 +341,30 @@ export default function App() {
         </div>
 
         {!selected && !selectedBusStop && !routeFocus && <div className="sheet-summary">
-          <MapPin size={16} /><span>{(nearby.loading || nearbyBuses.loading) && !nearby.board && !nearbyBuses.board ? 'Finding nearby departures' : `${lines.length} routes nearby`}</span>
+          <MapPin size={16} /><span>{!isOnline ? 'Live data unavailable' : (nearby.loading || nearbyBuses.loading) && !nearby.board && !nearbyBuses.board ? 'Finding nearby departures' : `${lines.length} routes nearby`}</span>
           {referenceMode === 'map' && location.coordinates && <button className="return-location" onClick={returnToLocation}><LocateFixed size={16} />Return to my location</button>}
         </div>}
 
         <div className="sheet-body">
-          {routeFocus ? <RouteDetail focus={routeFocus} onDirection={selectFocusedDirection} loadingVehicles={loadingPositions} routeError={routeError} />
-            : selected ? <StationBoard station={selected} arrivals={arrivals} loading={loadingArrivals} error={arrivalError} onRouteSelect={(route) => openRoute(route, selected, arrivals?.arrivals)} onRetry={() => setArrivalRetry((value) => value + 1)} />
-              : selectedBusStop ? <BusStopBoard stop={selectedBusStop} arrivals={busArrivals} loading={loadingBusArrivals} error={busArrivalError} onRouteSelect={(route) => openBusRouteAtStop(route, selectedBusStop, busArrivals)} onRetry={() => setArrivalRetry((value) => value + 1)} />
-              : <NearbyFeed lines={lines} boardReady={Boolean(nearby.board || nearbyBuses.board)} loading={nearby.loading || nearbyBuses.loading} refreshing={nearby.refreshing || nearbyBuses.refreshing}
-                error={!nearby.board && !nearbyBuses.board ? nearby.error || nearbyBuses.error || stationError : null}
-                partialError={nearby.error && nearbyBuses.error ? 'Train and bus updates are temporarily unavailable.' : nearby.error ? 'Train updates are temporarily unavailable.' : nearbyBuses.error ? 'Bus updates are temporarily unavailable.' : null}
-                locationPermission={location.permission} locationMessage={location.message} onLocation={location.request} onRetry={() => { nearby.retry(); nearbyBuses.retry() }} onOpen={openNearbyLine} limit={sheetState === 'expanded' ? undefined : 6} />}
+          {!isOnline ? <StateCard icon={<WifiOff />} title="You’re offline" detail="Reconnect to load current CTA predictions and vehicle positions. Stored departure times are never shown as live." /> : <>
+            {routeFocus ? <RouteDetail focus={routeFocus} onDirection={selectFocusedDirection} loadingVehicles={loadingPositions} routeError={routeError} />
+              : selected ? <StationBoard station={selected} arrivals={arrivals} loading={loadingArrivals} error={arrivalError} onRouteSelect={(route) => openRoute(route, selected, arrivals?.arrivals)} onRetry={() => setArrivalRetry((value) => value + 1)} />
+                : selectedBusStop ? <BusStopBoard stop={selectedBusStop} arrivals={busArrivals} loading={loadingBusArrivals} error={busArrivalError} onRouteSelect={(route) => openBusRouteAtStop(route, selectedBusStop, busArrivals)} onRetry={() => setArrivalRetry((value) => value + 1)} />
+                : <NearbyFeed lines={lines} boardReady={Boolean(nearby.board || nearbyBuses.board)} loading={nearby.loading || nearbyBuses.loading} refreshing={nearby.refreshing || nearbyBuses.refreshing}
+                  error={!nearby.board && !nearbyBuses.board ? nearby.error || nearbyBuses.error || stationError : null}
+                  partialError={nearby.error && nearbyBuses.error ? 'Train and bus updates are temporarily unavailable.' : nearby.error ? 'Train updates are temporarily unavailable.' : nearbyBuses.error ? 'Bus updates are temporarily unavailable.' : null}
+                  isOnline={isOnline} locationPermission={location.permission} locationMessage={location.message} onLocation={location.request} onRetry={() => { nearby.retry(); nearbyBuses.retry() }} onOpen={openNearbyLine} limit={sheetState === 'expanded' ? undefined : 6} />}
 
-          {!selected && !selectedBusStop && !routeFocus && sheetState === 'expanded' && <div className="all-lines-section">
-            <div className="section-label"><span>All rail lines</span><small>Explore live trains</small></div>
-            <RoutePicker onSelect={(route) => openRoute(route)} />
-            <div className="section-label bus-section-label"><span>All bus routes</span><small>Search {busRoutes.length || 'CTA'} routes</small></div>
-            <BusRoutePicker routes={busRoutes} onSelect={openBusRoute} />
-          </div>}
+            {!selected && !selectedBusStop && !routeFocus && sheetState === 'expanded' && <div className="all-lines-section">
+              <div className="section-label"><span>All rail lines</span><small>Explore live trains</small></div>
+              <RoutePicker onSelect={(route) => openRoute(route)} />
+              <div className="section-label bus-section-label"><span>All bus routes</span><small>Search {busRoutes.length || 'CTA'} routes</small></div>
+              <BusRoutePicker routes={busRoutes} onSelect={openBusRoute} />
+            </div>}
+          </>}
         </div>
       </BottomSheet>
-      <p className="data-credit">CTA + City of Chicago data · Unofficial · Free and open source</p>
+      <p className="data-credit">CTA + City of Chicago data · Unofficial · <a href="/privacy.html">Privacy</a> · Free and open source</p>
     </main>
   )
 }
@@ -381,10 +386,11 @@ function BottomSheet({ state, setState, onCycle, children }: { state: SheetState
   </section>
 }
 
-function NearbyFeed({ lines, boardReady, loading, refreshing, error, partialError, locationPermission, locationMessage, onLocation, onRetry, onOpen, limit }: {
+function NearbyFeed({ lines, boardReady, loading, refreshing, error, partialError, isOnline, locationPermission, locationMessage, onLocation, onRetry, onOpen, limit }: {
   lines: TransitNearbyLine[]; boardReady: boolean; loading: boolean; refreshing: boolean; error: string | null; partialError: string | null
-  locationPermission: string; locationMessage: string | null; onLocation: () => void; onRetry: () => void; onOpen: (line: TransitNearbyLine, directionId?: string) => void; limit?: number
+  isOnline: boolean; locationPermission: string; locationMessage: string | null; onLocation: () => void; onRetry: () => void; onOpen: (line: TransitNearbyLine, directionId?: string) => void; limit?: number
 }) {
+  const wakingService = useDelayedFlag(loading && !boardReady && isOnline, 4_000)
   return <div className="nearby-feed">
     {locationPermission === 'idle' && <div className="location-card">
       <span className="location-card-icon"><LocateFixed size={22} /></span>
@@ -393,7 +399,8 @@ function NearbyFeed({ lines, boardReady, loading, refreshing, error, partialErro
     </div>}
     {['denied', 'unavailable', 'error'].includes(locationPermission) && locationMessage && <div className="inline-notice" role="status"><AlertCircle size={18} /><span>{locationMessage}</span><button onClick={onLocation}>Try again</button></div>}
     {loading && !boardReady && <FeedSkeleton />}
-    {error && !boardReady && <StateCard icon={<WifiOff />} title="Nearby departures unavailable" detail={error} action="Try again" onAction={onRetry} />}
+    {wakingService && <div className="wake-notice" role="status"><RefreshCw className="spin" size={16} /><span><strong>Waking the live service…</strong> The free server can take about a minute after a quiet period.</span></div>}
+    {error && !boardReady && <StateCard icon={<WifiOff />} title={isOnline ? 'Nearby departures unavailable' : 'You’re offline'} detail={isOnline ? error : 'Reconnect to load current CTA predictions and vehicle positions.'} action="Try again" onAction={onRetry} />}
     {partialError && boardReady && <div className="stale-notice" role="status"><WifiOff size={15} />{partialError}<button onClick={onRetry}>Retry</button></div>}
     {!loading && boardReady && !lines.length && <StateCard icon={<Clock3 />} title="No nearby predictions" detail="CTA is not reporting upcoming service near this point right now." action="Refresh" onAction={onRetry} />}
     {lines.length > 0 && <div className="line-feed" aria-label="Nearby transit departures">
@@ -403,6 +410,27 @@ function NearbyFeed({ lines, boardReady, loading, refreshing, error, partialErro
     </div>}
     {refreshing && boardReady && <p className="refreshing-label"><RefreshCw className="spin" size={14} />Refreshing departures</p>}
   </div>
+}
+
+function useOnlineStatus() {
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine)
+  useEffect(() => {
+    const update = () => setIsOnline(navigator.onLine)
+    window.addEventListener('online', update)
+    window.addEventListener('offline', update)
+    return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update) }
+  }, [])
+  return isOnline
+}
+
+function useDelayedFlag(active: boolean, delay: number) {
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    if (!active) { setVisible(false); return }
+    const timer = window.setTimeout(() => setVisible(true), delay)
+    return () => window.clearTimeout(timer)
+  }, [active, delay])
+  return visible
 }
 
 function NearbyBusCard({ line, onOpen }: { line: NearbyBusLine; onOpen: (line: TransitNearbyLine, directionId?: string) => void }) {

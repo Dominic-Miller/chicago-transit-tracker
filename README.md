@@ -5,13 +5,14 @@ city, see the train and bus departures closest to your location or map center,
 open a stop's arrival board, and plot the vehicles currently running on any CTA
 route without an account or subscription.
 
-This first prototype is deliberately lightweight:
+The app is deliberately lightweight:
 
 - React, TypeScript, Vite, and Leaflet in the browser
 - Java 17 and Spring Boot on the server
 - CTA Train Tracker and Bus Tracker for live arrivals and vehicle locations
 - City of Chicago open data for stations, bus stops, and route geometry
-- no database, cloud account, user account, or analytics
+- installable progressive web app for iPhone and other modern browsers
+- no database, user account, advertising, or product analytics
 
 ## Prerequisites
 
@@ -56,6 +57,45 @@ npm run dev
 Open http://localhost:5173. Vite proxies `/api` requests to Spring Boot on port
 8080.
 
+## Install on an iPhone
+
+The production site is an installable progressive web app. Open its HTTPS URL
+in Safari, tap **Share**, choose **Add to Home Screen**, leave **Open as Web App**
+enabled, and tap **Add**. Location remains opt-in and is requested only when you
+tap the location control inside the app.
+
+The interface can launch without a network connection, but current arrivals,
+vehicle positions, location-based results, and map tiles are intentionally never
+cached as live data. Reconnect and retry to load current CTA information.
+
+## Deploy a free pilot on Render
+
+The root [`render.yaml`](render.yaml) defines two services:
+
+- a free Docker web service for the Spring Boot API
+- a free static site for the Vite frontend and PWA assets
+
+Create a new Render Blueprint from this repository. During setup, enter these
+secret or environment values without committing them:
+
+| Service | Variable | Value |
+| --- | --- | --- |
+| API | `CTA_API_KEY` | CTA Train Tracker key |
+| API | `CTA_BUS_API_KEY` | CTA Bus Tracker key |
+| Frontend | `VITE_API_BASE_URL` | Full API URL, such as `https://open-transit-chicago-api.onrender.com` |
+| API | `APP_ALLOWED_ORIGINS` | Exact frontend URL, such as `https://open-transit-chicago.onrender.com` |
+
+Deploy the API first, copy its generated HTTPS URL into the frontend variable,
+then copy the frontend HTTPS URL into the API allowed-origins variable and
+redeploy both services. Verify `/api/health` returns `{"status":"ok"}` before
+opening the frontend.
+
+Render's free API service sleeps after 15 minutes without traffic and can take
+about a minute to wake. The app identifies this state instead of appearing stuck.
+If the pilot becomes useful enough to need instant startup, change only the API
+service's instance type from Free to a paid always-on instance; no database or
+application migration is required.
+
 ## Test on a phone over local HTTPS
 
 The frontend automatically enables HTTPS and listens on the local network when
@@ -88,12 +128,17 @@ cd frontend && npm test
 cd frontend && npm run build
 ```
 
+The production build emits `manifest.webmanifest` and `sw.js`. Inspect the
+service worker whenever its caching configuration changes: `/api/`, CTA data,
+coordinates, and map tile hosts must not appear in a runtime cache rule.
+
 ## Current scope
 
 The tracker groups nearby arrival predictions by line and direction, shows an
 approximate straight-line walking estimate, and adds route geometry and live train
 positions when a line is selected. Location access is opt-in and coordinates are
-kept only in browser memory.
+kept only in browser memory. The hosted `/privacy.html` page contains the pilot's
+plain-language privacy statement.
 
 The tracker supports every CTA rail and bus route. Nearby rail stations and bus
 stops are combined into one departure feed, with route-specific geometry and
