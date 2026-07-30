@@ -1,8 +1,9 @@
 # Open Transit Chicago
 
 An unofficial, open-source Chicago transit tracker. Pan the map anywhere in the
-city, choose an 'L' station, see its live CTA Train Tracker arrivals, and plot
-the trains currently running on any rail route without an account or subscription.
+city, see the lines and departures closest to your location or map center, open
+an 'L' station's arrival board, and plot the trains currently running on any rail
+route without an account or subscription.
 
 This first prototype is deliberately lightweight:
 
@@ -58,10 +59,16 @@ Open http://localhost:5173. Vite proxies `/api` requests to Spring Boot on port
 
 ```bash
 cd backend && mvn test
+cd frontend && npm test
 cd frontend && npm run build
 ```
 
 ## Current scope
+
+The tracker groups nearby arrival predictions by line and direction, shows an
+approximate straight-line walking estimate, and adds route geometry and live train
+positions when a line is selected. Location access is opt-in and coordinates are
+kept only in browser memory.
 
 The prototype tracks CTA rail stations, arrival predictions, and train locations.
 Train positions are track-circuit estimates supplied by CTA rather than onboard
